@@ -16,6 +16,7 @@ const PORT = process.env.PORT || 3001;
 
 // Security middleware
 app.use(helmet());
+app.set('trust proxy', 1);  // Trust first proxy
 
 // CORS configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];

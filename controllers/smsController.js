@@ -94,6 +94,7 @@ async function getAuthToken() {
       }
 
       // Enable the token
+      console.log('[SMS] Enabling new auth token: ', token);  // get token to logs for debugging
       const enableResponse = await fetch(
         `${API_BASE_URL}/api/sendsms/token?action=enable&token=${token}`,
         { method: 'POST', headers: { 'apikey': API_KEY } }
@@ -313,9 +314,7 @@ async function sendBulkSMS(req, res, next) {
 
         const response = await fetch(`${API_BASE_URL}/sendsms?${params.toString()}`, {
           method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` }
         });
 
         const responseText = await response.text();
