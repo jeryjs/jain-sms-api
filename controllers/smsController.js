@@ -74,10 +74,7 @@ async function getAuthToken() {
     try {
       const response = await fetch(tokenUrl, {
         method: 'POST',
-        headers: {
-          'apikey': API_KEY,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'apikey': API_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({ old_token: cachedToken.token || '' }),
       });
 
@@ -95,10 +92,11 @@ async function getAuthToken() {
 
       // Enable the token
       console.log('[SMS] Enabling new auth token: ', token);  // get token to logs for debugging
-      const enableResponse = await fetch(
-        `${API_BASE_URL}/api/sendsms/token?action=enable&token=${token}`,
-        { method: 'POST', headers: { 'apikey': API_KEY } }
-      );
+      const enableResponse = await fetch(`${API_BASE_URL}/api/sendsms/token?action=enable&token=${token}`, { 
+        method: 'POST', 
+        headers: { 'apikey': API_KEY },
+        body: JSON.stringify({ old_token: cachedToken.token || '' }),
+      });
 
       if (!enableResponse.ok) {
         console.warn('[SMS] Error: Failed to enable token...');
