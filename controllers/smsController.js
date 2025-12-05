@@ -17,22 +17,18 @@ const redisClient = redis.createClient({
 redisClient.on('error', (err) => console.error('[SMS] Redis Client Error:', err));
 redisClient.on('connect', () => console.log('[SMS] Connected to Redis'));
 
-// Connect to Redis
-(async () => {
-  try {
-    await redisClient.connect();
-  } catch (error) {
-    console.error('[SMS] Failed to connect to Redis:', error);
-  }
-})();
-
 // --- Redis token cache key ---
 const TOKEN_CACHE_KEY = 'sms:auth:token';
 
-// --- Load token from Redis on startup ---
+// --- Initialize Redis and load token on startup ---
 let cachedToken = { token: null, expiry: 0 };
 (async () => {
+  try {
+    await redisClient.connect();
   cachedToken = await loadTokenFromRedis();
+  } catch (error) {
+    console.error('[SMS] Failed to connect to Redis:', error);
+  }
 })();
 
 // --- Promise lock to prevent duplicate token fetches ---
