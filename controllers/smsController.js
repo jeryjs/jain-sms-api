@@ -1,38 +1,63 @@
 // controllers/smsController.js
 // SMS sending logic and Pragati API integration
 
-const fs = require('fs');
-const path = require('path');
+const redis = require('redis');
 
-// --- Token cache file path ---
-const TOKEN_CACHE_FILE = path.join(__dirname, '..', '.token-cache.json');
+// --- Redis client setup ---
+const redisClient = redis.createClient({
+  socket: {
+    host: process.env.REDIS_HOST || '127.0.0.1',
+    port: parseInt(process.env.REDIS_PORT) || 6379,
+    
+  },
+  password: process.env.REDIS_PASSWORD,
+  database: process.env.REDIS_DB ? parseInt(process.env.REDIS_DB) : 0,
+});
 
-// --- Load token from disk on startup ---
-let cachedToken = loadTokenFromDisk();
+redisClient.on('error', (err) => console.error('[SMS] Redis Client Error:', err));
+redisClient.on('connect', () => console.log('[SMS] Connected to Redis'));
+
+// Connect to Redis
+(async () => {
+  try {
+    await redisClient.connect();
+  } catch (error) {
+    console.error('[SMS] Failed to connect to Redis:', error);
+  }
+})();
+
+// --- Redis token cache key ---
+const TOKEN_CACHE_KEY = 'sms:auth:token';
+
+// --- Load token from Redis on startup ---
+let cachedToken = { token: null, expiry: 0 };
+(async () => {
+  cachedToken = await loadTokenFromRedis();
+})();
 
 // --- Promise lock to prevent duplicate token fetches ---
 let tokenRefreshPromise = null;
 
-function loadTokenFromDisk() {
+async function loadTokenFromRedis() {
   try {
-    if (fs.existsSync(TOKEN_CACHE_FILE)) {
-      const data = fs.readFileSync(TOKEN_CACHE_FILE, 'utf8');
+    const data = await redisClient.get(TOKEN_CACHE_KEY);
+    if (data) {
       const token = JSON.parse(data);
-      console.log('[SMS] Loaded cached token from disk');
+      console.log('[SMS] Loaded cached token from Redis');
       return token;
     }
   } catch (error) {
-    console.warn('[SMS] Failed to load token from disk:', error.message);
+    console.warn('[SMS] Failed to load token from Redis:', error.message);
   }
   return { token: null, expiry: 0 };
 }
 
-function saveTokenToDisk(token) {
+async function saveTokenToRedis(token) {
   try {
-    fs.writeFileSync(TOKEN_CACHE_FILE, JSON.stringify(token, null, 2), 'utf8');
-    console.log('[SMS] Saved token to disk');
+    await redisClient.set(TOKEN_CACHE_KEY, JSON.stringify(token));
+    console.log('[SMS] Saved token to Redis');
   } catch (error) {
-    console.error('[SMS] Failed to save token to disk:', error.message);
+    console.error('[SMS] Failed to save token to Redis:', error.message);
   }
 }
 
@@ -109,8 +134,8 @@ async function getAuthToken() {
       const expiryTimestamp = Date.now() + (6 * 24 * 60 * 60 * 1000);
       cachedToken = { token, expiry: expiryTimestamp };
 
-      // Persist to disk
-      saveTokenToDisk(cachedToken);
+      // Persist to Redis
+      await saveTokenToRedis(cachedToken);
 
       console.log('[SMS] Successfully cached new auth token');
       return token;
