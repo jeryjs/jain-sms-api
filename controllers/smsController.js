@@ -8,7 +8,6 @@ const redisClient = redis.createClient({
   socket: {
     host: process.env.REDIS_HOST || '127.0.0.1',
     port: parseInt(process.env.REDIS_PORT) || 6379,
-    
   },
   password: process.env.REDIS_PASSWORD,
   database: process.env.REDIS_DB ? parseInt(process.env.REDIS_DB) : 0,
@@ -25,7 +24,7 @@ let cachedToken = { token: null, expiry: 0 };
 (async () => {
   try {
     await redisClient.connect();
-  cachedToken = await loadTokenFromRedis();
+    cachedToken = await loadTokenFromRedis();
   } catch (error) {
     console.error('[SMS] Failed to connect to Redis:', error);
   }
@@ -113,8 +112,8 @@ async function getAuthToken() {
 
       // Enable the token
       console.log('[SMS] Enabling new auth token: ', token);  // get token to logs for debugging
-      const enableResponse = await fetch(`${API_BASE_URL}/api/sendsms/token?action=enable&token=${token}`, { 
-        method: 'POST', 
+      const enableResponse = await fetch(`${API_BASE_URL}/api/sendsms/token?action=enable&token=${token}`, {
+        method: 'POST',
         headers: { 'apikey': API_KEY },
         body: JSON.stringify({ old_token: cachedToken.token || '' }),
       });
@@ -273,6 +272,7 @@ async function sendBulkSMS(req, res, next) {
 
     const API_BASE_URL = process.env.PRAGATI_API_BASE_URL;
     const SENDER_ID = process.env.SMS_SENDER_ID;
+    const TEST_NUMBERS = (process.env.TEST_NUMBERS || '').split(',').map(n => n.replace(/\D/g, ''));
 
     if (!API_BASE_URL || !SENDER_ID || !templateid) {
       throw new Error('SMS configuration incomplete');
@@ -292,7 +292,9 @@ async function sendBulkSMS(req, res, next) {
       if (!groupedByMessage[messageText]) {
         groupedByMessage[messageText] = [];
       }
-      groupedByMessage[messageText].push(recipient);
+      if (TEST_NUMBERS.includes(recipient.phone)) { // Skip test numbers
+        console.log("Skipped Test num:" + recipient.phone);
+      } else groupedByMessage[messageText].push(recipient);
     }
 
     // Split groups larger than 100 into batches (Pragati API limit)
